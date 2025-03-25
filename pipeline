@@ -77,7 +77,7 @@ pipeline {
             steps {
                 sh ''' 
 
-                kubectl apply -f frontend.yml
+                kubectl apply -f frontend.yaml
                 ''' 
             }
         }
