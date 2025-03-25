@@ -1,0 +1,100 @@
+pipeline {
+    agent any
+    environment {
+        ZONE = "us-central1-c"
+        IMAGE_NAME = "sample1"
+       
+        CLUSTER_NAME = "cluster-2"
+        GOOGLE_APPLICATION_CREDENTIALS = credentials('gcp')
+        DEPLOY_YAML = "frontend.yml"
+    }
+    stages {
+        stage('docker login') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub', 
+                                                  usernameVariable: 'DOCKER_USER', 
+                                                  passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    '''
+                }
+            }
+        }
+        stage('gcp login') {
+            steps {
+                sh '''
+                gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                '''
+            }
+        }
+        stage("build image") {
+            steps {
+                sh '''
+                docker build -t "$IMAGE_NAME" .
+                docker tag "$IMAGE_NAME" ganesh6498/$IMAGE_NAME:$BUILD_NUMBER
+                '''
+            }
+        }
+        stage('docker push') {
+            steps {
+                sh '''
+                docker push ganesh6498/$IMAGE_NAME:$BUILD_NUMBER
+                '''
+            }
+        }
+        stage('Update Deployment File') {
+            steps {
+                script {
+                    echo 'Updating deployment YAML with the latest Docker image...'
+                    sh """
+                    sed -i 's|image: .*|image: ganesh6498/${IMAGE_NAME}:${BUILD_NUMBER}|' ${DEPLOY_YAML}
+                    """
+                }
+            }
+        }
+        stage("push artifact") {
+            steps {
+                sh '''
+                docker tag $IMAGE_NAME $ARTIFACT_REPO/$IMAGE_NAME:$BUILD_NUMBER
+                docker push $ARTIFACT_REPO/$IMAGE_NAME:$BUILD_NUMBER
+                '''
+            }
+        }
+        stage('terraform apply') {
+            steps {
+                sh ''' 
+                terraform init
+                terraform plan
+                terraform apply --auto-approve
+                '''
+            }
+        }
+        stage("wait for connection") {
+            steps {
+                retry(3) {
+                    sh '''  
+                    sleep 10
+                    gcloud container clusters get-credentials $CLUSTER_NAME --zone $ZONE --project sam-453310
+                    '''
+                }
+            }
+        }
+        
+        stage("run backend sql") {
+            steps {
+                sh ''' 
+
+                kubectl apply -f frontend.yml
+                ''' 
+            }
+        }
+        stage("get svc") {
+            steps {
+                sh ''' 
+                sleep 40
+                kubectl get svc
+                '''
+            }
+        }
+    }
+}
