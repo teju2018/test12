@@ -6,7 +6,7 @@ pipeline {
        
         CLUSTER_NAME = "cluster-2"
         GOOGLE_APPLICATION_CREDENTIALS = credentials('gcp')
-        DEPLOY_YAML = "frontend.yml"
+        DEPLOY_YAML = "frontend.yaml"
     }
     stages {
         stage('docker login') {
