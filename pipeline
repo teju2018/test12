@@ -52,14 +52,7 @@ pipeline {
                 }
             }
         }
-        stage("push artifact") {
-            steps {
-                sh '''
-                docker tag $IMAGE_NAME $ARTIFACT_REPO/$IMAGE_NAME:$BUILD_NUMBER
-                docker push $ARTIFACT_REPO/$IMAGE_NAME:$BUILD_NUMBER
-                '''
-            }
-        }
+       
         stage('terraform apply') {
             steps {
                 sh ''' 
