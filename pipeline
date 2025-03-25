@@ -73,7 +73,7 @@ pipeline {
             }
         }
         
-        stage("run backend sql") {
+        stage("deploy application ") {
             steps {
                 sh ''' 
 
